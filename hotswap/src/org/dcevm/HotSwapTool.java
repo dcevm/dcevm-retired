@@ -93,10 +93,7 @@ public class HotSwapTool {
             ClassRedefinitionPolicy policy = clazz.getAnnotation(ClassRedefinitionPolicy.class);
             Class<?> replacement = (policy != null && policy.alias() != ClassRedefinitionPolicy.NoClass.class) ?
                     policy.alias() : clazz;
-
-            // reload only if class is already defined in the classloader. This may not be the case e.g. for new anonymous classes
-            if (isClassDefined(name))
-                typeMappings.put(Type.getInternalName(clazz), stripVersion(Type.getInternalName(replacement)));
+            typeMappings.put(Type.getInternalName(clazz), stripVersion(Type.getInternalName(replacement)));
 
         }
 
@@ -105,16 +102,6 @@ public class HotSwapTool {
             loadAdaptedClass(file, typeMappings, classesMap);
         }
         return classesMap;
-    }
-
-    // check that class is already defined in the classloader
-    private static boolean isClassDefined(String name) {
-        try {
-            Class.forName(stripVersion(name));
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
     }
 
     private static void loadAdaptedClass(File file, Map<String, String> typeMappnigs, Map<Class<?>, byte[]> result) throws IOException, ClassNotFoundException {
@@ -220,13 +207,7 @@ public class HotSwapTool {
         if (index == -1) {
             return 0;
         }
-        String version = name.substring(index + IDENTIFIER.length(), name.length() - CLASS_FILE_SUFFIX.length());
-        if (version.indexOf("$") > 0) {
-            // strip off anonymous class name (i.e. class___1$anonymous)
-            version = version.substring(0, version.indexOf("$"));
-        }
-
-        return Integer.valueOf(version);
+        return Integer.valueOf(name.substring(index + IDENTIFIER.length(), name.length() - CLASS_FILE_SUFFIX.length()));
     }
 
     private static String stripVersion(String className) {
@@ -234,7 +215,7 @@ public class HotSwapTool {
         if (index == -1) {
             return className;
         }
-        return className.substring(0, index) + className.substring(index+IDENTIFIER.length()+1, className.length());
+        return className.substring(0, index);
     }
 
     public static void resetTimings() {
