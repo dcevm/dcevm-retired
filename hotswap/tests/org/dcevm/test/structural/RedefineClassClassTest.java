@@ -25,6 +25,7 @@ package org.dcevm.test.structural;
 
 import org.dcevm.ClassRedefinitionPolicy;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import static org.dcevm.test.util.HotSwapTestHelper.__toVersion__;
@@ -35,6 +36,7 @@ import static org.dcevm.test.util.HotSwapTestHelper.__version__;
  *
  * @author Thomas Wuerthinger
  */
+@Ignore
 public class RedefineClassClassTest {
 
     // Version 0
