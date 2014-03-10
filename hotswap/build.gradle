@@ -70,7 +70,7 @@ task compileDCEVM(type: InvokeMake) {
     args kind // product or fastdebug
 }
 
-task installDCEVM(dependsOn: prepareJvm) << {
+task installDCEVM(dependsOn: [prepareJvm, compileDCEVM]) << {
     def installPath = new File(new File(localJre, arch == Arch.X86 ? os.installPath32 : os.installPath64), jvmname)
 
     println "Installing DCEVM runtime into JRE with JVM name ${jvmname} at ${installPath}\n"
