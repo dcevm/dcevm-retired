@@ -926,6 +926,7 @@ instanceKlassHandle ClassLoader::load_classfile(Symbol* h_name, TRAPS) {
     instanceKlassHandle result = parser.parseClassFile(h_name,
                                                        loader_data,
                                                        protection_domain,
+                                                       KlassHandle(),
                                                        parsed_name,
                                                        false,
                                                        CHECK_(h));

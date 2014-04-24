@@ -269,7 +269,7 @@ public:
   // Resolve from stream (called by jni_DefineClass and JVM_DefineClass)
   static Klass* resolve_from_stream(Symbol* class_name, Handle class_loader,
                                       Handle protection_domain,
-                                      ClassFileStream* st, bool verify, TRAPS);
+                                      ClassFileStream* st, bool verify, KlassHandle old_class, TRAPS);
 
   // Lookup an already loaded class. If not found NULL is returned.
   static Klass* find(Symbol* class_name, Handle class_loader, Handle protection_domain, TRAPS);
