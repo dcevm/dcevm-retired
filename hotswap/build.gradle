@@ -1,0 +1,187 @@
+import org.gradle.api.tasks.Exec
+
+// Some global properties/parameters
+project.ext.set('jre', System.getProperty("java.home"))
+project.ext.set('localJre', new File('build/jre'))
+project.ext.set('compiler', 'compiler2')
+project.ext.set('arch', Arch.current())
+project.ext.set('os', Os.current())
+
+if (!hasProperty('kind')) {
+    project.ext.set('kind', 'fastdebug')
+}
+if (!hasProperty('oops')) {
+    project.ext.set('oops', 'compressed')
+}
+if (!hasProperty('buildNumber')) {
+    project.ext.set('buildNumber', 'dev')
+}
+if (!hasProperty('traceRedefinition')) {
+    project.ext.set('traceRedefinition', '1')
+}
+
+// Name of the JVM to install DCEVM as
+def jvmname = "dcevm-${compiler}-${kind}"
+
+allprojects {
+    apply plugin: 'java'
+    apply plugin: 'idea'
+
+    sourceCompatibility = 1.8
+    targetCompatibility = 1.8
+
+    repositories {
+        mavenCentral()
+    }
+
+    sourceSets {
+        main {
+            java {
+                srcDir 'src'
+            }
+        }
+
+        test {
+            java {
+                srcDir 'tests'
+            }
+        }
+    }
+}
+
+project(':agent') {
+    jar {
+        manifest {
+            from "src/META-INF/MANIFEST.MF"
+        }
+    }
+}
+
+task prepareJvm << {
+
+    ant.copy(todir: localJre) {
+        fileset(dir: jre)
+    }
+    ant.chmod(file: new File(localJre, 'bin/java'), perm: '0755')
+}
+
+task cleanDCEVM(type: InvokeMake) {
+    args 'clean'
+}
+
+task compileDCEVM(type: InvokeMake) {
+    args 'COMPILER_WARNINGS_FATAL=false' // clang is very serious about warnings
+    args 'HOTSPOT_BUILD_JOBS=8'
+    args 'ENABLE_FULL_DEBUG_SYMBOLS=' + (kind == 'fastdebug' ? '1' : '0')
+    if (kind == 'fastdebug') {
+        args 'STRIP_POLICY=no_strip'
+        args 'ZIP_DEBUGINFO_FILES=0'
+    }
+    args kind // product or fastdebug
+}
+
+task installDCEVM(dependsOn: [prepareJvm, compileDCEVM]) << {
+    def installPath = new File(new File(localJre, arch == Arch.X86 ? os.installPath32 : os.installPath64), jvmname)
+
+    println "Installing DCEVM runtime into JRE with JVM name ${jvmname} at ${installPath}\n"
+    ant.copy(todir: installPath) {
+        fileset(dir: "../build/${os.buildPath}/${os.buildPath}_${arch.buildArch}_${compiler}/${kind}",
+                includes: 'libjvm.so,libjsig.so,jvm.dll,jsig.dll,libjvm.dylib,libjsig.dylib')
+    }
+}
+
+test.dependsOn(installDCEVM)
+test.dependsOn(compileDCEVM)
+clean.dependsOn(cleanDCEVM)
+
+compileDCEVM.onlyIf { !project.hasProperty('skipDCEVM') }
+cleanDCEVM  .onlyIf { !project.hasProperty('skipDCEVM') }
+
+test {
+    executable new File(localJre, "/bin/java")
+    jvmArgs "-XXaltjvm=${jvmname}"
+    jvmArgs '-javaagent:agent/build/libs/agent.jar'
+    if (arch == Arch.X86_64) {
+        jvmArgs project.oops == "compressed" ? '-XX:+UseCompressedOops' : "-XX:-UseCompressedOops"
+    }
+    jvmArgs "-XX:TraceRedefineClasses=${traceRedefinition}"
+
+    ignoreFailures = true
+    scanForTestClasses = false
+    include 'org/dcevm/test/LightTestSuite.class'
+
+    outputs.upToDateWhen { false }
+}
+
+dependencies {
+    compile project(':agent')
+    compile group: 'asm', name: 'asm-all', version: '3.3.+'
+    compile files("${jre}/../lib/tools.jar")
+    testCompile group: 'junit', name: 'junit', version: '4.+'
+
+}
+
+enum Os {
+    MAC('bsd', 'lib', 'lib'),
+    WINDOWS('windows', 'bin', 'bin'),
+    UNIX('linux', 'lib/i386', 'lib/amd64')
+
+    final String buildPath;
+    final String installPath32;
+    final String installPath64;
+
+    Os(String buildPath, String installPath32, String installPath64) {
+        this.buildPath = buildPath
+        this.installPath32 = installPath32
+        this.installPath64 = installPath64
+    }
+
+    static Os current() {
+        return values().find {os -> org.apache.tools.ant.taskdefs.condition.Os.isFamily(os.name().toLowerCase())}
+    }
+}
+
+enum Arch {
+    X86(["i386", "i486", "i586", "x86"], 'i486', 32),
+    X86_64(["x86_64", "x64", "amd64"], 'amd64', 64)
+
+    final List<String> names
+    final String buildArch
+    final int bits
+
+    Arch(List<String> names, String buildArch, int bits) {
+        this.names = names
+        this.buildArch = buildArch
+        this.bits = bits
+    }
+
+    static Arch find(String token) {
+        Arch res = values().find({ v -> v.names.contains(token) })
+        return res
+    }
+
+    static Arch current() {
+        return find(System.getProperty("os.arch"))
+    }
+}
+
+class InvokeMake extends Exec {
+    InvokeMake() {
+        workingDir '..'
+
+        if (project.os != Os.WINDOWS) {
+            commandLine 'make', '-C', 'make'
+        } else {
+            // Using launcher script
+            commandLine 'cmd', '/c', 'hotswap\\build.cmd'
+            environment ARCH: project.arch == Arch.X86 ? 'x86' : 'x64'
+        }
+        args 'OPENJDK=true'
+        args "HOTSPOT_BUILD_VERSION=dcevmlight-${project.buildNumber}"
+        args "ARCH_DATA_MODEL=${project.arch.bits}"
+        // Mac OS X
+        //args 'CXX=/usr/local/bin/g++-4.8'
+        //args 'CC=/usr/local/bin/gcc-4.8'
+        args "ALT_BOOTDIR=${project.jre.replace('\\', '/')}/.." // Replacing backslashes is essential for Windows!
+    }
+}
