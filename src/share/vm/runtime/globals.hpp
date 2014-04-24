@@ -1273,6 +1273,9 @@ class CommandLineFlags {
   product(intx, TraceRedefineClasses, 0,                                    \
           "Trace level for JVMTI RedefineClasses")                          \
                                                                             \
+  product(bool, AllowEnhancedClassRedefinition, true,                       \
+          "Allow enhanced class redefinition beyond swapping method bodies")\
+                                                                            \
   develop(bool, StressMethodComparator, false,                              \
           "Run the MethodComparator on all loaded methods")                 \
                                                                             \
