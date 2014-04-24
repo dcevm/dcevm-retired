@@ -78,6 +78,8 @@
 #include "gc_implementation/parallelScavenge/parallelScavengeHeap.hpp"
 #endif // INCLUDE_ALL_GCS
 
+bool Universe::_is_redefining_gc_run = false;
+
 // Known objects
 Klass* Universe::_boolArrayKlassObj                 = NULL;
 Klass* Universe::_byteArrayKlassObj                 = NULL;
