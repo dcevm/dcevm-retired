@@ -373,6 +373,10 @@ class ConstantPoolCacheEntry VALUE_OBJ_CLASS_SPEC {
          bool * trace_name_printed);
   bool check_no_old_or_obsolete_entries();
   bool is_interesting_method_entry(Klass* k);
+
+  // Enhanced RedefineClasses() API support (DCEVM):
+  // Clear cached entry, let it be re-resolved
+  void clear_entry();
 #endif // INCLUDE_JVMTI
 
   // Debugging & Printing
@@ -472,6 +476,10 @@ class ConstantPoolCache: public MetaspaceObj {
                              int methods_length, bool * trace_name_printed);
   bool check_no_old_or_obsolete_entries();
   void dump_cache();
+
+  // Enhanced RedefineClasses() API support (DCEVM):
+  // Clear all entries
+  void clear_entries();
 #endif // INCLUDE_JVMTI
 
   // Deallocate - no fields to deallocate

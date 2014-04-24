@@ -78,6 +78,10 @@ public:
 
   void add_klass(Symbol* class_name, ClassLoaderData* loader_data,KlassHandle obj);
 
+  bool update_klass(int index, unsigned int hash, Symbol* name, ClassLoaderData* loader_data, KlassHandle k, KlassHandle old_class);
+
+  void rollback_redefinition();
+
   Klass* find_class(int index, unsigned int hash,
                       Symbol* name, ClassLoaderData* loader_data);
 
@@ -105,6 +109,11 @@ public:
   static bool is_strongly_reachable(ClassLoaderData* loader_data, Klass* klass) {
     assert (klass != NULL, "should have non-null klass");
     return (loader_data->is_the_null_class_loader_data() || !ClassUnloading);
+  }
+
+  // (DCEVM) During enhanced class redefinition we want old version if new is being redefined
+  static Klass* intercept_for_version(Klass* k) {
+    return (k != NULL && k->is_redefining()) ? k->old_version() : k;
   }
 
   // Unload (that is, break root links to) all unmarked classes and

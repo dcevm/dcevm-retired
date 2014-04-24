@@ -532,6 +532,20 @@ bool ConstantPoolCacheEntry::is_interesting_method_entry(Klass* k) {
   // the method is in the interesting class so the entry is interesting
   return true;
 }
+
+// Enhanced RedefineClasses() API support (DCEVM):
+// Clear cached entry, let it be re-resolved
+void ConstantPoolCacheEntry::clear_entry() {
+  // Clear entry during class redefinition. Note that we still keep flags.
+  _indices = constant_pool_index();
+  _f1 = NULL;
+  _f2 = 0;
+
+  // FIXME: (DCEVM) we want to clear flags, but it seems like they are referenced after clear_entry is called, but
+  // before they are reinitialized! So we are keeping them here for now...
+  // It's probably happening around prepare_invoke in template table.
+  //_flags = 0;
+}
 #endif // INCLUDE_JVMTI
 
 void ConstantPoolCacheEntry::print(outputStream* st, int index) const {
@@ -658,6 +672,14 @@ void ConstantPoolCache::dump_cache() {
     if (entry_at(i)->is_interesting_method_entry(NULL)) {
       entry_at(i)->print(tty, i);
     }
+  }
+}
+
+// Enhanced RedefineClasses() API support (DCEVM):
+// Clear all entries
+void ConstantPoolCache::clear_entries() {
+  for (int i = 0; i < length(); i++) {
+    entry_at(i)->clear_entry();
   }
 }
 #endif // INCLUDE_JVMTI

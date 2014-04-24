@@ -339,6 +339,8 @@ public:
   // System loader lock
   static oop system_loader_lock()           { return _system_loader_lock_obj; }
 
+  // (DCEVM) Remove link to hierarchy
+  static void remove_from_hierarchy(instanceKlassHandle k);
 private:
   // Extended Redefine classes support (tbi)
   static void preloaded_classes_do(KlassClosure* f);
@@ -407,6 +409,9 @@ public:
     int limit = (int)end_id + 1;
     initialize_wk_klasses_until((WKID) limit, start_id, THREAD);
   }
+
+  // (DCEVM) rollback class redefinition
+  static void rollback_redefinition();
 
 public:
   #define WK_KLASS_DECLARE(name, symbol, option) \
@@ -613,7 +618,7 @@ private:
   // after waiting, but before reentering SystemDictionary_lock
   // to preserve lock order semantics.
   static void double_lock_wait(Handle lockObject, TRAPS);
-  static void define_instance_class(instanceKlassHandle k, TRAPS);
+  static void define_instance_class(instanceKlassHandle k, KlassHandle old_class, TRAPS);
   static instanceKlassHandle find_or_define_instance_class(Symbol* class_name,
                                                 Handle class_loader,
                                                 instanceKlassHandle k, TRAPS);
